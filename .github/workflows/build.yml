@@ -1,0 +1,86 @@
+name: build-and-push
+
+on:
+  push:
+    tags:
+      - 'AliSQL-8.0.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '完整版本号,如 8.0.44-1'
+        required: true
+        default: '8.0.44-1'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse tag / inputs
+        id: parse
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#AliSQL-}"
+          fi
+          BRANCH=$(echo "$VERSION" | cut -d. -f1-2)
+          BASE=$(echo "$VERSION" | sed 's/-[0-9]*$//')
+          echo "branch=$BRANCH"   >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "base=$BASE"       >> $GITHUB_OUTPUT
+          echo "Parsed: branch=$BRANCH version=$VERSION base=$BASE"
+
+      - name: Download AliSQL tarballs
+        env:
+          BRANCH:  ${{ steps.parse.outputs.branch }}
+          VERSION: ${{ steps.parse.outputs.version }}
+          RELEASE_BASE: https://github.com/alibaba/AliSQL/releases/download/AliSQL-${{ steps.parse.outputs.version }}
+        run: |
+          set -eux
+          for pair in "amd64:x86_64" "arm64:aarch64"; do
+            DOCKER_ARCH="${pair%:*}"
+            ALISQL_ARCH="${pair#*:}"
+            curl -fL -o "${BRANCH}/alisql-${VERSION}-${DOCKER_ARCH}.tar.xz" \
+              "${RELEASE_BASE}/alisql-${VERSION}-linux-glibc2.17-${ALISQL_ARCH}.tar.xz"
+          done
+          ls -la "${BRANCH}/"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Compute tags
+        id: tags
+        env:
+          BRANCH:  ${{ steps.parse.outputs.branch }}
+          VERSION: ${{ steps.parse.outputs.version }}
+          BASE:    ${{ steps.parse.outputs.base }}
+        run: |
+          TAGS=(
+            "songhuaxiong/alisql:${VERSION}"
+            "songhuaxiong/alisql:${BASE}"
+            "songhuaxiong/alisql:${BRANCH}"
+            "songhuaxiong/alisql:latest"
+          )
+          T=$(IFS=,; echo "${TAGS[*]}")
+          echo "list=$T" >> $GITHUB_OUTPUT
+          echo "Tags: $T"
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.parse.outputs.branch }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.list }}
+          cache-from: type=gha,scope=${{ steps.parse.outputs.branch }}
+          cache-to:   type=gha,scope=${{ steps.parse.outputs.branch }},mode=max
