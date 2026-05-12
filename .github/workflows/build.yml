@@ -41,7 +41,8 @@ jobs:
         env:
           BRANCH:  ${{ steps.parse.outputs.branch }}
           VERSION: ${{ steps.parse.outputs.version }}
-          RELEASE_BASE: https://github.com/alibaba/AliSQL/releases/download/AliSQL-${{ steps.parse.outputs.version }}
+          RELEASE_REPO: ${{ vars.ALISQL_RELEASE_REPO || 'alibaba/AliSQL' }}
+          RELEASE_BASE: https://github.com/${{ vars.ALISQL_RELEASE_REPO || 'alibaba/AliSQL' }}/releases/download/AliSQL-${{ steps.parse.outputs.version }}
         run: |
           set -eux
           for pair in "amd64:x86_64" "arm64:aarch64"; do

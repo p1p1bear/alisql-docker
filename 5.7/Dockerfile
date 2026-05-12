@@ -16,7 +16,7 @@ RUN set -eux; \
     chmod +x /usr/local/bin/gosu; gosu nobody true
 
 RUN microdnf install -y bzip2 gzip openssl xz zstd findutils \
-      libaio numactl-libs ncurses-compat-libs \
+      libaio numactl-libs ncurses-compat-libs compat-openssl10 \
  && microdnf clean all
 
 ARG ALISQL_VERSION
