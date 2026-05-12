@@ -21,7 +21,7 @@ RUN microdnf install -y bzip2 gzip openssl xz zstd findutils \
 
 ARG ALISQL_VERSION
 ENV ALISQL_VERSION=${ALISQL_VERSION}
-ENV MYSQL_MAJOR=8.0
+ENV MYSQL_MAJOR=5.7
 
 ARG TARGETARCH
 COPY alisql-${ALISQL_VERSION}-${TARGETARCH}.tar.xz /tmp/alisql.tar.xz

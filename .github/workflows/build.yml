@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'AliSQL-8.0.*'
+      - 'AliSQL-5.7.*'
   workflow_dispatch:
     inputs:
       version:
@@ -82,5 +83,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.tags.outputs.list }}
+          build-args: |
+            ALISQL_VERSION=${{ steps.parse.outputs.version }}
           cache-from: type=gha,scope=${{ steps.parse.outputs.branch }}
           cache-to:   type=gha,scope=${{ steps.parse.outputs.branch }},mode=max
